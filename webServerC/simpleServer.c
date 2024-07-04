@@ -39,9 +39,6 @@ int main()
       *the second arguments (ie 10) represents The backlog which is an integer that defines the maximum length to which the
        queue of pending connections for sockfd may grow
     */ 
- 
-     the second arguments (ie 10) represents The backlog which is an integer that defines the maximum length to which the
-       queue of pending connections for sockfd may grow
     listen(s, 10);
 
     int client_fd = accept(s, 0, 0);
