@@ -1,8 +1,8 @@
-#include <stdio.h>
+
+#include <sys/socket.h>
 #include <string.h>
 #include <fcntl.h>
-#include <sys/sendfile.h>
-#include <sys/socket.h>
+//#include <sys/sendfile.h>
 #include <unistd.h>
 #include <netinet/in.h>
 
@@ -35,9 +35,9 @@ int main()
     bind(s, &addr, sizeof(addr));
 
      /*
-      * marks a socket as passive, socket will listen for incoming connection requests. 
-      *the second arguments (ie 10) represents The backlog which is an integer that defines the maximum length to which the
-       queue of pending connections for sockfd may grow
+    Marks a socket as passive, socket will listen for incoming connection requests. 
+    the second arguments (ie 10) represents The backlog which is an integer that defines the maximum length to which the
+    queue of pending connections for sockfd may grow
     */ 
     listen(s, 10);
 
@@ -52,4 +52,7 @@ int main()
 
     int open_fd = open(f, O_RDONLY);
     sendfile(client_fd, open_fd, 0, 256);
+    close(open_fd);
+    close(client_fd);
+    close(s);
 }
