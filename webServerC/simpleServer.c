@@ -2,9 +2,10 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <fcntl.h>
-//#include <sys/sendfile.h>
+#include <sys/sendfile.h>
 #include <unistd.h>
 #include <netinet/in.h>
+
 
 /*
  * An implementation of a simple web server in C using the socket function.
