@@ -2,11 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#define PORT 8080  // Port to listen on (change if needed)
-#define BUFFER_SIZE 1024  // Size of the read/write buffer
+#define PORT 8080  // Define the port number (default 8080)
+#define BUFFER_SIZE 1024  // Define the buffer size for reading data
 
 // Function to handle client requests
 void handle_client(int client_socket) {
@@ -14,63 +15,58 @@ void handle_client(int client_socket) {
   ssize_t bytes_read;
 
   // Read the request from the client
-  bytes_read = read(client_socket, buffer, BUFFER_SIZE);
-  if (bytes_read < 0) {
-    perror("read");
+  bytes_read = recv(client_socket, buffer, BUFFER_SIZE, 0);
+  if (bytes_read == -1) {
+    perror("recv");
     close(client_socket);
     return;
   }
 
-  // Parse the request (simplified for this example)
-  char *method = strtok(buffer, " ");
-  char *uri = strtok(NULL, " ");
+  // Check if any data was read
+  if (bytes_read == 0) {
+    printf("Client disconnected\n");
+    close(client_socket);
+    return;
+  }
 
-  printf("Received request: %s %s\n", method, uri);
+  // Null terminate the buffer for string manipulation
+  buffer[bytes_read] = '\0';
 
-  // Check for requested resource (replace with your logic)
-  if (strcmp(uri, "/") == 0) {
-    // Serve index.html
-    send_response(client_socket, "index.html", "text/html");
+  // Simple check for GET request (ignores more complex methods)
+  if (strncmp(buffer, "GET /", 4) == 0) {
+    // Extract the requested file path
+    char* requested_file = buffer + 4;
+
+    // Check for empty request (default to index.html)
+    if (strcmp(requested_file, "") == 0) {
+      requested_file = "index.html";
+    }
+
+    // Open the requested file
+    FILE* file = fopen(requested_file, "rb");
+    if (file == NULL) {
+      // Send 404 Not Found response
+      const char* response = "HTTP/1.1 404 Not Found\nContent-Type: text/plain\n\n404 Not Found";
+      send(client_socket, response, strlen(response), 0);
+    } else {
+      // Send 200 OK response with content
+      const char* header = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n";
+      send(client_socket, header, strlen(header), 0);
+
+      // Read and send file content in chunks
+      while ((bytes_read = fread(buffer, 1, BUFFER_SIZE, file)) > 0) {
+        send(client_socket, buffer, bytes_read, 0);
+      }
+      fclose(file);
+    }
   } else {
-    // Send 404 Not Found
-    send_response(client_socket, NULL, NULL);
+    // Send 400 Bad Request for unsupported methods
+    const char* response = "HTTP/1.1 400 Bad Request\nContent-Type: text/plain\n\n400 Bad Request";
+    send(client_socket, response, strlen(response), 0);
   }
 
   // Close the client socket
   close(client_socket);
-}
-
-// Function to send an HTTP response
-void send_response(int client_socket, char *filename, char *content_type) {
-  FILE *fp;
-  char response[BUFFER_SIZE];
-  int response_length;
-
-  // Build the response header
-  if (filename == NULL) {
-    sprintf(response, "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n");
-    response_length = strlen(response);
-  } else {
-    // Open the requested file
-    fp = fopen(filename, "rb");
-    if (fp == NULL) {
-      sprintf(response, "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n");
-      response_length = strlen(response);
-    } else {
-      // Read file content and build response
-      fseek(fp, 0, SEEK_END);
-      int file_size = ftell(fp);
-      fseek(fp, 0, SEEK_SET);
-      fread(response + strlen(response), 1, file_size, fp);
-      fclose(fp);
-
-      sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n", content_type, file_size);
-      response_length = strlen(response) + file_size;
-    }
-  }
-
-  // Send the response to the client
-  write(client_socket, response, response_length);
 }
 
 int main() {
@@ -79,31 +75,37 @@ int main() {
 
   // Create a socket
   server_socket = socket(AF_INET, SOCK_STREAM, 0);
-  if (server_socket < 0) {
+  if (server_socket == -1) {
     perror("socket");
     exit(1);
   }
 
   // Configure server address
-  memset(&server_address, 0, sizeof(server_address));
   server_address.sin_family = AF_INET;
-  server_address.sin_addr.s_addr = INADDR_ANY;
+  server_address.sin_addr.s_addr = INADDR_ANY;  // Listen on any interface
   server_address.sin_port = htons(PORT);
 
   // Bind the socket to the address
-  if (bind(server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
+  if (bind(server_socket, (struct sockaddr*)&server_address, sizeof(server_address)) == -1) {
     perror("bind");
+    close(server_socket);
     exit(1);
   }
 
   // Listen for incoming connections
-  if (listen(server_socket, 5) < 0) {
+  if (listen(server_socket, 5) == -1) {  // Queue up to 5 connections
     perror("listen");
+    close(server_socket);
     exit(1);
   }
 
   printf("Server listening on port %d\n", PORT);
 
-  // Accept connections and handle them
+  // Main loop: accept connections and handle clients
   while (1) {
-    client_socket = accept
+    // Accept a new connection
+    client_socket = accept(server_socket, NULL, NULL);
+    if
+  }
+
+}
